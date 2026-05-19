@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'runpod/**'
+      - 'workflows/wan22_animate_16gb.json'
+      - 'workflows/wan22_animate_chunked.json'
+      - 'workflows/ltx23_pose.json'
       - 'requirements.txt'
       - '.github/workflows/build-runpod-image.yml'
   workflow_dispatch: {}
@@ -17,6 +20,25 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     timeout-minutes: 120
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Wan 2.2-Animate (original track). The `latest` tag keeps the
+          # historical default pointing at this image so existing pod
+          # references and runpod/README.md instructions don't break.
+          - name: wan22
+            dockerfile: runpod/Dockerfile
+            tag_suffix: wan22
+            extra_tags: |
+              type=raw,value=latest,enable={{is_default_branch}}
+          # LTX-2.3 parallel track. Same image name, different tag. No
+          # `latest` here — users opt in explicitly via the `:ltx23` tag.
+          - name: ltx23
+            dockerfile: runpod/Dockerfile.ltx23
+            tag_suffix: ltx23
+            extra_tags: ''
 
     steps:
       - name: Free disk space on runner
@@ -49,16 +71,17 @@ jobs:
         with:
           images: ghcr.io/${{ steps.ns.outputs.owner_lc }}/wan-influencer-pipeline
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,format=short
+            type=raw,value=${{ matrix.tag_suffix }},enable={{is_default_branch}}
+            type=sha,format=short,suffix=-${{ matrix.tag_suffix }}
+            ${{ matrix.extra_tags }}
 
-      - name: Build and push image
+      - name: Build and push image (${{ matrix.name }})
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: runpod/Dockerfile
+          file: ${{ matrix.dockerfile }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=max

@@ -74,6 +74,8 @@ Two workflows ship with this repo:
 
 `runpod/` contains a `Dockerfile`, container `entrypoint.sh`, `runpod_batch.py` (multi-patch variant of `run_batch.py`), and `s3_sync.py` — everything needed to run this pipeline on a RunPod A100 80GB pod with optional S3 sync for inputs and outputs. The chunked workflow targets this path because long-video generation exceeds the headroom of a 16 GB card. See `runpod/README.md` for build instructions, env vars, storage layout, and a cost/time estimate.
 
+**LTX-2.3 parallel track.** A second image is published alongside the Wan 2.2 build for direct A/B testing: `ghcr.io/<owner>/wan-influencer-pipeline:ltx23` (22B FP8 dev checkpoint, IC-LoRA Union Control for pose conditioning, native audio generation). Built from `runpod/Dockerfile.ltx23` + `runpod/entrypoint.ltx23.sh` and driven by `workflows/ltx23_pose.json`. The `:latest` tag continues to point at the Wan 2.2 image so existing references are unaffected. See `runpod/README.md` → *A/B testing Wan 2.2 vs LTX-2.3* for image tags, env-var presets per track, per-clip cost on A100 80GB Community, and the strategic trade-offs between the two models.
+
 ## Expected times
 
 On RTX 5080 @ 576×1024 / 65 frames / 25 steps / Q8 GGUF / sequential offload:

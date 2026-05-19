@@ -1,0 +1,142 @@
+# syntax=docker/dockerfile:1.6
+#
+# RunPod ComfyUI + LTX-2.3 image (parallel track to runpod/Dockerfile).
+#
+# Mirrors runpod/Dockerfile exactly except for the custom-node set:
+# Wan2.2 nodes (WanVideoWrapper, ComfyUI-GGUF) are replaced with
+# Lightricks ComfyUI-LTXVideo, which provides every LTX class_type used
+# by workflows/ltx23_pose.json (LTXICLoRALoaderModelOnly, LTXVConditioning,
+# LTXVImgToVideoConditionOnly, EmptyLTXVLatentVideo, LTXVTiledVAEDecode,
+# LTXAddVideoICLoRAGuide, LTXVCropGuides, etc.).
+#
+# Base: CUDA 12.8 runtime on Ubuntu 24.04 with cuDNN. Python 3.12.
+# Build context = repo root, e.g.:
+#   docker build -f runpod/Dockerfile.ltx23 -t ltx23-influencer:latest .
+#
+# Layer ordering is identical to Dockerfile so cache lines up across the
+# two images for shared layers (apt, venv, pytorch, comfyui core).
+
+FROM nvidia/cuda:12.8.0-cudnn-runtime-ubuntu24.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# ---------------------------------------------------------------------------
+# 1) System packages
+# ---------------------------------------------------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3.12 \
+        python3.12-venv \
+        python3-pip \
+        python3-dev \
+        git \
+        ffmpeg \
+        build-essential \
+        ca-certificates \
+        curl \
+        wget \
+        libgl1 \
+        libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---------------------------------------------------------------------------
+# 2) Python venv (isolated from system Python / PEP 668 lock)
+# ---------------------------------------------------------------------------
+RUN python3.12 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH" \
+    VIRTUAL_ENV=/opt/venv
+
+RUN pip install --upgrade pip wheel
+
+# ---------------------------------------------------------------------------
+# 3) PyTorch nightly cu128 (Blackwell sm_120 + Ada/Ampere/Hopper supported)
+# ---------------------------------------------------------------------------
+RUN pip install --pre torch torchvision torchaudio \
+        --index-url https://download.pytorch.org/whl/nightly/cu128
+
+# ---------------------------------------------------------------------------
+# 4) ComfyUI + its core requirements
+# ---------------------------------------------------------------------------
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git /opt/ComfyUI \
+    && pip install -r /opt/ComfyUI/requirements.txt
+
+# ---------------------------------------------------------------------------
+# 5) Custom nodes + their requirements
+#    LTX-2.3 set:
+#      - ComfyUI-LTXVideo:           LTX-specific nodes (loaders, IC-LoRA,
+#                                    conditioning, tiled VAE decode).
+#      - ComfyUI-KJNodes:            general utility nodes (kept from the
+#                                    Wan setup; the LTX example workflows
+#                                    use a couple of these too).
+#      - ComfyUI-VideoHelperSuite:   VHS_LoadVideo / VHS_VideoCombine so
+#                                    workflows/ltx23_pose.json is driven
+#                                    by the same `runpod_batch.py` class
+#                                    sets as the Wan workflows.
+#      - ComfyUI-Frame-Interpolation: optional RIFE pass (for a future
+#                                    chunked LTX workflow).
+#      - comfyui_controlnet_aux:     DWPreprocessor for OpenPose stick
+#                                    figures (LTX IC-LoRA Union Control
+#                                    consumes OpenPose pose images).
+# ---------------------------------------------------------------------------
+RUN set -eux; \
+    cd /opt/ComfyUI/custom_nodes; \
+    for url in \
+        https://github.com/Lightricks/ComfyUI-LTXVideo \
+        https://github.com/kijai/ComfyUI-KJNodes \
+        https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite \
+        https://github.com/Fannovel16/ComfyUI-Frame-Interpolation \
+        https://github.com/Fannovel16/comfyui_controlnet_aux \
+    ; do \
+        name="$(basename "$url")"; \
+        git clone --depth 1 "$url" "$name"; \
+    done; \
+    for d in /opt/ComfyUI/custom_nodes/*/; do \
+        if [ -f "$d/requirements.txt" ]; then \
+            echo "Installing requirements for $d"; \
+            pip install -r "$d/requirements.txt"; \
+        fi; \
+    done
+
+# ---------------------------------------------------------------------------
+# 6) Extras: sage-attention, triton, onnxruntime-gpu, boto3 (S3 sync)
+# ---------------------------------------------------------------------------
+RUN pip install triton sageattention onnxruntime-gpu boto3
+
+# ---------------------------------------------------------------------------
+# 7) Repo requirements (copy just the requirements file first so source-file
+#    edits don't invalidate this pip layer)
+# ---------------------------------------------------------------------------
+WORKDIR /app
+COPY requirements.txt /app/requirements.txt
+RUN pip install -r /app/requirements.txt
+
+# ---------------------------------------------------------------------------
+# 8) Model directory skeleton
+#    LTX-2.3 uses checkpoints/, loras/, text_encoders/<gemma-folder>/, and
+#    the standard onnx/ slot for DWPose. No external VAE slot is needed —
+#    the LTX checkpoint bundles its own VAE.
+# ---------------------------------------------------------------------------
+RUN mkdir -p \
+        /opt/ComfyUI/models/checkpoints \
+        /opt/ComfyUI/models/loras \
+        /opt/ComfyUI/models/text_encoders \
+        /opt/ComfyUI/models/onnx
+
+# ---------------------------------------------------------------------------
+# 9) Copy the rest of the repo last (cheap layer, busted by code changes)
+# ---------------------------------------------------------------------------
+COPY . /app/
+RUN chmod +x /app/runpod/entrypoint.ltx23.sh
+
+# ---------------------------------------------------------------------------
+# 10) Runtime config
+# ---------------------------------------------------------------------------
+ENV COMFY_ROOT=/opt/ComfyUI \
+    REPO_ROOT=/app
+
+EXPOSE 8188
+
+ENTRYPOINT ["/app/runpod/entrypoint.ltx23.sh"]

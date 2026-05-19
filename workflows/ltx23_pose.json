@@ -1,0 +1,182 @@
+{
+  "_comment_top": "LTX-2.3 pose-driven character animation, single ~4 s chunk. Mirror of workflows/wan22_animate_16gb.json for a fair A/B test against Wan2.2-Animate. Class types chosen so runpod/runpod_batch.py auto-detects all patch points without code changes: LoadImage (image), VHS_LoadVideo (video), VHS_VideoCombine (save). The native LTX nodes (SaveVideo, LoadVideo, CreateVideo) are deliberately swapped for VHS equivalents — VHS_VideoCombine accepts the same images-tensor input that CreateVideo expects, and its audio input is left unwired here because VHS_LoadVideo (with format='AnimateDiff' or default) does not pull audio. To preserve audio passthrough, replace VHS_LoadVideo with GetVideoComponents+LoadVideo and re-wire to CreateVideo+SaveVideo; the runpod_batch.py SAVE_CLASSES set would then need 'SaveVideo' added. ASSUMPTION: LTXAVTextEncoderLoader points at the Gemma folder under models/text_encoders/ — confirmed via Lightricks docs but the precise input key 'encoder_path' is inferred from ComfyUI conventions. ASSUMPTION: LTXICLoRALoaderModelOnly takes a 'lora_name' relative to models/loras/. ASSUMPTION: Manual sigma schedule '1.0,0.99...0.0' is the LTX-recommended schedule from the example workflow LTX-2.3_ICLoRA_Union_Control_Distilled.json; we use 25 steps with euler_ancestral_cfg_pp at CFG 1.0 per that example.",
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "ltx-2.3-22b-dev-fp8.safetensors"
+    }
+  },
+  "2": {
+    "class_type": "LTXAVTextEncoderLoader",
+    "inputs": {
+      "encoder_path": "gemma-3-12b-it-qat-q4_0-unquantized"
+    }
+  },
+  "3": {
+    "class_type": "LTXICLoRALoaderModelOnly",
+    "inputs": {
+      "model": ["1", 0],
+      "lora_name": "ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors",
+      "strength_model": 1.0
+    }
+  },
+  "10": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "assets/influencers/01.png"
+    }
+  },
+  "11": {
+    "class_type": "VHS_LoadVideo",
+    "inputs": {
+      "video": "assets/source/dancer.mp4",
+      "force_rate": 24,
+      "custom_width": 736,
+      "custom_height": 1280,
+      "frame_load_cap": 97,
+      "skip_first_frames": 0,
+      "select_every_nth": 1,
+      "format": "AnimateDiff"
+    }
+  },
+  "12": {
+    "class_type": "DWPreprocessor",
+    "inputs": {
+      "image": ["11", 0],
+      "detect_hand": "enable",
+      "detect_body": "enable",
+      "detect_face": "enable",
+      "resolution": 1280,
+      "bbox_detector": "yolox_l.onnx",
+      "pose_estimator": "dw-ll_ucoco_384.onnx",
+      "scale_stick_for_xinsr_cn": "disable"
+    }
+  },
+  "20": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "a person dancing, cinematic, high quality, sharp focus, detailed, smooth motion",
+      "clip": ["2", 0]
+    }
+  },
+  "21": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "blurry, distorted, low quality, deformed, watermark, text, extra limbs, frozen pose, static",
+      "clip": ["2", 0]
+    }
+  },
+  "22": {
+    "class_type": "LTXVConditioning",
+    "inputs": {
+      "positive": ["20", 0],
+      "negative": ["21", 0],
+      "frame_rate": 24
+    }
+  },
+  "30": {
+    "class_type": "EmptyLTXVLatentVideo",
+    "inputs": {
+      "width": 736,
+      "height": 1280,
+      "length": 97,
+      "batch_size": 1
+    }
+  },
+  "31": {
+    "class_type": "LTXVImgToVideoConditionOnly",
+    "inputs": {
+      "positive": ["22", 0],
+      "negative": ["22", 1],
+      "vae": ["1", 2],
+      "image": ["10", 0],
+      "width": 736,
+      "height": 1280,
+      "length": 97,
+      "batch_size": 1,
+      "image_noise_scale": 0.15
+    }
+  },
+  "32": {
+    "class_type": "LTXAddVideoICLoRAGuide",
+    "inputs": {
+      "positive": ["31", 0],
+      "negative": ["31", 1],
+      "vae": ["1", 2],
+      "guide_video": ["12", 0],
+      "guide_strength": 1.0,
+      "guide_type": "pose"
+    }
+  },
+  "33": {
+    "class_type": "LTXVCropGuides",
+    "inputs": {
+      "positive": ["32", 0],
+      "negative": ["32", 1],
+      "latent": ["30", 0]
+    }
+  },
+  "40": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "euler_ancestral_cfg_pp"
+    }
+  },
+  "41": {
+    "class_type": "ManualSigmas",
+    "inputs": {
+      "sigmas_str": "1.0,0.9937,0.9875,0.9812,0.975,0.9625,0.95,0.9375,0.925,0.9,0.875,0.85,0.825,0.8,0.75,0.7,0.65,0.6,0.5,0.4,0.3,0.2,0.1,0.05,0.0"
+    }
+  },
+  "42": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 42
+    }
+  },
+  "43": {
+    "class_type": "CFGGuider",
+    "inputs": {
+      "model": ["3", 0],
+      "positive": ["33", 0],
+      "negative": ["33", 1],
+      "cfg": 1.0
+    }
+  },
+  "44": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": ["42", 0],
+      "guider": ["43", 0],
+      "sampler": ["40", 0],
+      "sigmas": ["41", 0],
+      "latent_image": ["33", 2]
+    }
+  },
+  "50": {
+    "class_type": "LTXVTiledVAEDecode",
+    "inputs": {
+      "samples": ["44", 0],
+      "vae": ["1", 2],
+      "tile_size": 256,
+      "tile_overlap": 32,
+      "temporal_size": 16,
+      "temporal_overlap": 4
+    }
+  },
+  "60": {
+    "class_type": "VHS_VideoCombine",
+    "inputs": {
+      "images": ["50", 0],
+      "frame_rate": 24,
+      "loop_count": 0,
+      "filename_prefix": "ltx23_smoke",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 19,
+      "save_metadata": true,
+      "pingpong": false,
+      "save_output": true
+    }
+  }
+}

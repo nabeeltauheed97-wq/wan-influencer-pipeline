@@ -125,3 +125,73 @@ hf download QuantStack/Wan2.2-Animate-14B-GGUF Wan2.2-Animate-14B-Q4_K_M.gguf \
 …and edit the workflow JSON's node `1` to point at the new filename. Note: Q4 will hit lower quality; use Q8 unless you're VRAM-constrained.
 
 To swap the entire model architecture (e.g. AnimateDiffXL, future Wan3): replace the `UnetLoaderGGUF` node and surrounding wiring per that model's reference workflow on the ComfyUI-Manager template list. The runpod_batch.py multi-patch logic is workflow-agnostic — it patches by `class_type`, so any workflow with `LoadImage` / `VHS_LoadVideo` / `VHS_VideoCombine` works.
+
+## A/B testing Wan 2.2 vs LTX-2.3
+
+This repo ships **two parallel container tracks** built from the same CI workflow. Both use the same `runpod_batch.py` multi-patch runner, the same S3 sync layer, the same `INFLUENCERS` list, and the same `LIMIT` / `ONLY` / `SOURCE_VIDEO` env vars — only the Dockerfile, entrypoint, and workflow JSON differ. Pick one, change the image tag on the RunPod pod, and the rest of the deploy stays identical.
+
+### Image tags
+
+Replace `OWNER` with the lowercased GitHub owner (e.g. `nabeeltauheed97-wq`):
+
+| Track | Image tag | Default workflow | Built from |
+|---|---|---|---|
+| Wan 2.2-Animate (14B) | `ghcr.io/OWNER/wan-influencer-pipeline:wan22` *(or `:latest`)* | `workflows/wan22_animate_16gb.json` | `runpod/Dockerfile` + `runpod/entrypoint.sh` |
+| LTX-2.3 (22B FP8 dev) | `ghcr.io/OWNER/wan-influencer-pipeline:ltx23` | `workflows/ltx23_pose.json` | `runpod/Dockerfile.ltx23` + `runpod/entrypoint.ltx23.sh` |
+
+The `:latest` tag is **pinned to the Wan 2.2 build** so existing pod references and the deploy instructions above don't break. New deployments should pin an explicit `:wan22` or `:ltx23` tag.
+
+### Switching tracks on RunPod
+
+Spin up two pods (one per track) with the same network volume mounted at `/opt/ComfyUI/models` and the same S3 inputs/outputs prefix. Recommended env vars per track:
+
+**Wan 2.2 pod**
+```
+WORKFLOW=workflows/wan22_animate_16gb.json
+SOURCE_VIDEO=assets/source/dancer.mp4
+LIMIT=1
+COMFYUI_EXTRA_ARGS=--use-sage-attention
+S3_BUCKET=...
+S3_PREFIX=runs/2026-05-19/wan22
+```
+
+**LTX-2.3 pod**
+```
+WORKFLOW=workflows/ltx23_pose.json
+SOURCE_VIDEO=assets/source/dancer.mp4
+LIMIT=1
+COMFYUI_EXTRA_ARGS=--use-sage-attention
+S3_BUCKET=...
+S3_PREFIX=runs/2026-05-19/ltx23
+```
+
+Different `S3_PREFIX` per pod keeps the two output sets cleanly separated for side-by-side review.
+
+### Per-clip cost on A100 80GB Community ($1.19/hr)
+
+These are the per-influencer smoke-test costs for one ~4 s output at 25 sampler steps, with sage-attention enabled. Cold-start / model-download is amortized once per pod lifetime against the mounted network volume.
+
+| Track | Resolution | Frames | Sampler time / clip | Cost / clip @ $1.19/hr |
+|---|---|---|---|---|
+| Wan 2.2-Animate Q8 | 576×1024 | 65 @ 16 fps | ~3-4 min | **~$0.07-0.08** |
+| LTX-2.3 22B FP8 dev | 736×1280 | 97 @ 24 fps | ~5-7 min | **~$0.10-0.14** |
+
+Full 10-influencer batches scale linearly. LTX renders ~50% more frames at ~70% higher pixel count, so the per-second-of-output cost is closer than the raw per-clip numbers suggest. Adjust workflow `length` / `width` / `height` to normalize.
+
+### Strategic differences
+
+- **Wan 2.2-Animate** — purpose-built for pose-driven character animation. 14B parameters, Q8 GGUF fits comfortably in 16 GB VRAM. Uses `WanAnimateToVideo` (built-in pose + reference image conditioning), DWPose stick figures, separate VAE / CLIP / CLIP-Vision. Mature, well-tested workflow. **No native audio.**
+- **LTX-2.3** — general-purpose video diffusion at 22B parameters, FP8-quantized for a ~22 GB checkpoint. **Native audio generation** (HiFi-GAN vocoder per LTX docs), built-in VAE, IC-LoRA Union Control adapter handles pose / depth / canny / motion-track conditioning from a single LoRA. Supports up to 4K with the spatial upscaler chain. Newer, fewer pose-tuned reference workflows in the wild.
+
+The same `runpod_batch.py` drives both — it auto-detects `LoadImage` / `VHS_LoadVideo` / `VHS_VideoCombine` and patches every match, so neither workflow needs override flags for the smoke test.
+
+### Known assumptions in `workflows/ltx23_pose.json`
+
+A few node-input keys in the LTX workflow were inferred from ComfyUI conventions and cross-referenced against `ComfyUI-LTXVideo/example_workflows/2.3/LTX-2.3_ICLoRA_Union_Control_Distilled.json`, but the Lightricks docs don't enumerate every input key:
+
+- `LTXAVTextEncoderLoader.encoder_path` — assumed to take the folder name under `models/text_encoders/`. Verify by running the workflow once; if it errors, check the loader's actual input key with `curl http://127.0.0.1:8188/object_info | jq '.LTXAVTextEncoderLoader'` from inside the pod.
+- `LTXICLoRALoaderModelOnly.lora_name` / `strength_model` — standard ComfyUI LoRA loader convention.
+- `LTXAddVideoICLoRAGuide.guide_type` set to `"pose"` to indicate the IC-LoRA Union Control branch. If the node expects an integer enum or different string, adjust.
+- Audio passthrough is **not wired** in the smoke workflow: `VHS_LoadVideo` does not emit an audio tensor and `VHS_VideoCombine`'s audio input is left empty. To enable LTX's native audio generation or driving-video audio passthrough, swap to LTX-native `LoadVideo` + `GetVideoComponents` + `CreateVideo` + `SaveVideo` and add `SaveVideo` to the `SAVE_CLASSES` set in `runpod/runpod_batch.py`.
+
+The smoke test is intentionally "fair" with the Wan track: same single ~4 s output, same reference image, same driving video, same multi-patch wiring through `runpod_batch.py`.

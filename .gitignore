@@ -22,9 +22,10 @@ venv/
 
 # Workflow exports (user-specific, contain absolute paths)
 workflows/*.json
-# Exception: the two reference workflows shipped with the repo (relative paths only)
+# Exception: the reference workflows shipped with the repo (relative paths only)
 !workflows/wan22_animate_16gb.json
 !workflows/wan22_animate_chunked.json
+!workflows/ltx23_pose.json
 
 # Keep folder structure
 !assets/influencers/.gitkeep
