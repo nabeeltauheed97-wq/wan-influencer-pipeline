@@ -12,7 +12,7 @@ echo "   - Create a Python venv at ~/wan-pipeline/venv"
 echo "   - Install repo requirements + PyTorch nightly cu128 (Blackwell sm_120)"
 echo "   - Install ComfyUI + custom node requirements"
 echo "   - Create model subdirectories"
-echo "   - PRINT (not run) the huggingface-cli download commands"
+echo "   - PRINT (not run) the hf download commands"
 echo "=========================================================================="
 
 sudo pacman -S --needed --noconfirm git python python-pip python-virtualenv ffmpeg base-devel
@@ -99,22 +99,22 @@ cat <<'EOF'
  Model downloads — RUN THESE MANUALLY (total ~25-30 GB, not auto-run)
 ==========================================================================
 
-huggingface-cli download city96/Wan2.2-Animate-14B-gguf wan2.2_animate_14B_Q8_0.gguf \
+hf download QuantStack/Wan2.2-Animate-14B-GGUF Wan2.2-Animate-14B-Q8_0.gguf \
   --local-dir ~/wan-pipeline/ComfyUI/models/diffusion_models
 
-huggingface-cli download Comfy-Org/Wan_2.2_ComfyUI_Repackaged \
+hf download Comfy-Org/Wan_2.2_ComfyUI_Repackaged \
   split_files/vae/wan_2.1_vae.safetensors \
   --local-dir ~/wan-pipeline/ComfyUI/models/vae
 
-huggingface-cli download Comfy-Org/Wan_2.2_ComfyUI_Repackaged \
+hf download Comfy-Org/Wan_2.2_ComfyUI_Repackaged \
   split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors \
   --local-dir ~/wan-pipeline/ComfyUI/models/text_encoders
 
-huggingface-cli download Comfy-Org/Wan_2.2_ComfyUI_Repackaged \
+hf download Comfy-Org/Wan_2.1_ComfyUI_repackaged \
   split_files/clip_vision/clip_vision_h.safetensors \
   --local-dir ~/wan-pipeline/ComfyUI/models/clip_vision
 
-huggingface-cli download yzd-v/DWPose dw-ll_ucoco_384.onnx yolox_l.onnx \
+hf download yzd-v/DWPose dw-ll_ucoco_384.onnx yolox_l.onnx \
   --local-dir ~/wan-pipeline/ComfyUI/models/onnx
 
 EOF
@@ -125,7 +125,7 @@ cat <<'EOF'
 ==========================================================================
   1) source ~/wan-pipeline/venv/bin/activate
   2) python check_vram.py   (must report capability (12, 0) and successful matmul)
-  3) Run the five huggingface-cli download commands above
+  3) Run the five hf download commands above
   4) Read workflows/README.md to export the workflow JSON in API Format
   5) python run_batch.py --workflow workflows/wan22_animate_16gb.json --source assets/source/dancer.mp4 --limit 1   (smoke test)
   6) If smoke test looks good: drop --limit 1 to run the full batch of 10.
