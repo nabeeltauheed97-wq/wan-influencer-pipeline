@@ -117,8 +117,11 @@ if [[ "$SKIP_MODEL_DOWNLOAD" != "1" ]]; then
         "split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors" \
         "split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors"
 
+    # clip_vision_h actually lives in the 2.1 repo (lowercase 'r'). The 2.2
+    # repackage shares CLIP-Vision encoder with 2.1 and Comfy-Org keeps it
+    # only in the 2.1 repo; the 2.2 repo has no split_files/clip_vision dir.
     download_model \
-        "Comfy-Org/Wan_2.2_ComfyUI_Repackaged" \
+        "Comfy-Org/Wan_2.1_ComfyUI_repackaged" \
         "$COMFY_ROOT/models/clip_vision" \
         "split_files/clip_vision/clip_vision_h.safetensors" \
         "split_files/clip_vision/clip_vision_h.safetensors"
