@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Models / weights
+*.safetensors
+*.gguf
+*.onnx
+*.bin
+*.pt
+
+# Media (large binaries — keep out of git)
+*.mp4
+*.mov
+*.webm
+*.webp
+*.png
+*.jpg
+*.jpeg
+
+# Workflow exports (user-specific, contain absolute paths)
+workflows/*.json
+
+# Keep folder structure
+!assets/influencers/.gitkeep
+!assets/source/.gitkeep
+!outputs/.gitkeep
+
+# Outputs
+outputs/*
+!outputs/.gitkeep
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
