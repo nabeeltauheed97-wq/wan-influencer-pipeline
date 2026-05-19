@@ -110,7 +110,7 @@ hf download Comfy-Org/Wan_2.2_ComfyUI_Repackaged \
   split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors \
   --local-dir ~/wan-pipeline/ComfyUI/models/text_encoders
 
-hf download Comfy-Org/Wan_2.1_ComfyUI_repackaged \
+hf download Comfy-Org/Wan_2.2_ComfyUI_Repackaged \
   split_files/clip_vision/clip_vision_h.safetensors \
   --local-dir ~/wan-pipeline/ComfyUI/models/clip_vision
 
