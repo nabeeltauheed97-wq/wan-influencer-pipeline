@@ -65,6 +65,15 @@ Then set `attention_mode: sageattn` in the workflow.
 
 See `workflows/README.md` for the one-time workflow export. Then run `python run_batch.py` per its `--help` / `workflows/README.md`.
 
+Two workflows ship with this repo:
+
+- **`workflows/wan22_animate_16gb.json`** — single 65-frame chunk (~4 s output at 16 fps). Use this for the local 16 GB RTX 5080 path and as the smoke-test workflow.
+- **`workflows/wan22_animate_chunked.json`** — four chained 65-frame chunks (~16 s output at 16 fps, doubled to 32 fps via RIFE VFI). Drives `WanAnimateToVideo` four times in parallel and concatenates with `ImageBatch` before frame interpolation. This workflow has multiple `LoadImage` / `VHS_LoadVideo` nodes, so the root `run_batch.py` will refuse it — use `runpod/runpod_batch.py` instead, which patches every matching node uniformly. See `runpod/README.md`.
+
+## Cloud deployment (RunPod / A100)
+
+`runpod/` contains a `Dockerfile`, container `entrypoint.sh`, `runpod_batch.py` (multi-patch variant of `run_batch.py`), and `s3_sync.py` — everything needed to run this pipeline on a RunPod A100 80GB pod with optional S3 sync for inputs and outputs. The chunked workflow targets this path because long-video generation exceeds the headroom of a 16 GB card. See `runpod/README.md` for build instructions, env vars, storage layout, and a cost/time estimate.
+
 ## Expected times
 
 On RTX 5080 @ 576×1024 / 65 frames / 25 steps / Q8 GGUF / sequential offload:

@@ -1,0 +1,364 @@
+{
+  "1": {
+    "class_type": "UnetLoaderGGUF",
+    "inputs": {
+      "unet_name": "Wan2.2-Animate-14B-Q8_0.gguf"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+      "type": "wan",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "split_files/vae/wan_2.1_vae.safetensors"
+    }
+  },
+  "4": {
+    "class_type": "CLIPVisionLoader",
+    "inputs": {
+      "clip_name": "split_files/clip_vision/clip_vision_h.safetensors"
+    }
+  },
+  "10": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "assets/influencers/01.png"
+    }
+  },
+  "11": {
+    "class_type": "VHS_LoadVideo",
+    "inputs": {
+      "video": "assets/source/dancer.mp4",
+      "force_rate": 16,
+      "custom_width": 576,
+      "custom_height": 1024,
+      "frame_load_cap": 65,
+      "skip_first_frames": 0,
+      "select_every_nth": 1,
+      "format": "Wan"
+    }
+  },
+  "12": {
+    "class_type": "VHS_LoadVideo",
+    "inputs": {
+      "video": "assets/source/dancer.mp4",
+      "force_rate": 16,
+      "custom_width": 576,
+      "custom_height": 1024,
+      "frame_load_cap": 65,
+      "skip_first_frames": 65,
+      "select_every_nth": 1,
+      "format": "Wan"
+    }
+  },
+  "13": {
+    "class_type": "VHS_LoadVideo",
+    "inputs": {
+      "video": "assets/source/dancer.mp4",
+      "force_rate": 16,
+      "custom_width": 576,
+      "custom_height": 1024,
+      "frame_load_cap": 65,
+      "skip_first_frames": 130,
+      "select_every_nth": 1,
+      "format": "Wan"
+    }
+  },
+  "14": {
+    "class_type": "VHS_LoadVideo",
+    "inputs": {
+      "video": "assets/source/dancer.mp4",
+      "force_rate": 16,
+      "custom_width": 576,
+      "custom_height": 1024,
+      "frame_load_cap": 65,
+      "skip_first_frames": 195,
+      "select_every_nth": 1,
+      "format": "Wan"
+    }
+  },
+  "15": {
+    "class_type": "DWPreprocessor",
+    "inputs": {
+      "image": ["11", 0],
+      "detect_hand": "enable",
+      "detect_body": "enable",
+      "detect_face": "enable",
+      "resolution": 1024,
+      "bbox_detector": "yolox_l.onnx",
+      "pose_estimator": "dw-ll_ucoco_384.onnx",
+      "scale_stick_for_xinsr_cn": "disable"
+    }
+  },
+  "16": {
+    "class_type": "DWPreprocessor",
+    "inputs": {
+      "image": ["12", 0],
+      "detect_hand": "enable",
+      "detect_body": "enable",
+      "detect_face": "enable",
+      "resolution": 1024,
+      "bbox_detector": "yolox_l.onnx",
+      "pose_estimator": "dw-ll_ucoco_384.onnx",
+      "scale_stick_for_xinsr_cn": "disable"
+    }
+  },
+  "17": {
+    "class_type": "DWPreprocessor",
+    "inputs": {
+      "image": ["13", 0],
+      "detect_hand": "enable",
+      "detect_body": "enable",
+      "detect_face": "enable",
+      "resolution": 1024,
+      "bbox_detector": "yolox_l.onnx",
+      "pose_estimator": "dw-ll_ucoco_384.onnx",
+      "scale_stick_for_xinsr_cn": "disable"
+    }
+  },
+  "18": {
+    "class_type": "DWPreprocessor",
+    "inputs": {
+      "image": ["14", 0],
+      "detect_hand": "enable",
+      "detect_body": "enable",
+      "detect_face": "enable",
+      "resolution": 1024,
+      "bbox_detector": "yolox_l.onnx",
+      "pose_estimator": "dw-ll_ucoco_384.onnx",
+      "scale_stick_for_xinsr_cn": "disable"
+    }
+  },
+  "20": {
+    "class_type": "CLIPVisionEncode",
+    "inputs": {
+      "clip_vision": ["4", 0],
+      "image": ["10", 0],
+      "crop": "center"
+    }
+  },
+  "21": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "a person dancing, cinematic, high quality, sharp focus, detailed, 4k",
+      "clip": ["2", 0]
+    }
+  },
+  "22": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "blurry, distorted, low quality, deformed, watermark, text, extra limbs, jpeg artifacts",
+      "clip": ["2", 0]
+    }
+  },
+  "31": {
+    "class_type": "WanAnimateToVideo",
+    "inputs": {
+      "positive": ["21", 0],
+      "negative": ["22", 0],
+      "vae": ["3", 0],
+      "width": 576,
+      "height": 1024,
+      "length": 65,
+      "batch_size": 1,
+      "continue_motion_max_frames": 5,
+      "video_frame_offset": 0,
+      "clip_vision_output": ["20", 0],
+      "reference_image": ["10", 0],
+      "pose_video": ["15", 0]
+    }
+  },
+  "32": {
+    "class_type": "WanAnimateToVideo",
+    "inputs": {
+      "positive": ["21", 0],
+      "negative": ["22", 0],
+      "vae": ["3", 0],
+      "width": 576,
+      "height": 1024,
+      "length": 65,
+      "batch_size": 1,
+      "continue_motion_max_frames": 5,
+      "video_frame_offset": 65,
+      "clip_vision_output": ["20", 0],
+      "reference_image": ["10", 0],
+      "pose_video": ["16", 0]
+    }
+  },
+  "33": {
+    "class_type": "WanAnimateToVideo",
+    "inputs": {
+      "positive": ["21", 0],
+      "negative": ["22", 0],
+      "vae": ["3", 0],
+      "width": 576,
+      "height": 1024,
+      "length": 65,
+      "batch_size": 1,
+      "continue_motion_max_frames": 5,
+      "video_frame_offset": 130,
+      "clip_vision_output": ["20", 0],
+      "reference_image": ["10", 0],
+      "pose_video": ["17", 0]
+    }
+  },
+  "34": {
+    "class_type": "WanAnimateToVideo",
+    "inputs": {
+      "positive": ["21", 0],
+      "negative": ["22", 0],
+      "vae": ["3", 0],
+      "width": 576,
+      "height": 1024,
+      "length": 65,
+      "batch_size": 1,
+      "continue_motion_max_frames": 5,
+      "video_frame_offset": 195,
+      "clip_vision_output": ["20", 0],
+      "reference_image": ["10", 0],
+      "pose_video": ["18", 0]
+    }
+  },
+  "41": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["1", 0],
+      "seed": 42,
+      "steps": 25,
+      "cfg": 6.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "positive": ["31", 0],
+      "negative": ["31", 1],
+      "latent_image": ["31", 2]
+    }
+  },
+  "42": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["1", 0],
+      "seed": 42,
+      "steps": 25,
+      "cfg": 6.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "positive": ["32", 0],
+      "negative": ["32", 1],
+      "latent_image": ["32", 2]
+    }
+  },
+  "43": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["1", 0],
+      "seed": 42,
+      "steps": 25,
+      "cfg": 6.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "positive": ["33", 0],
+      "negative": ["33", 1],
+      "latent_image": ["33", 2]
+    }
+  },
+  "44": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["1", 0],
+      "seed": 42,
+      "steps": 25,
+      "cfg": 6.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "positive": ["34", 0],
+      "negative": ["34", 1],
+      "latent_image": ["34", 2]
+    }
+  },
+  "51": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["41", 0],
+      "vae": ["3", 0]
+    }
+  },
+  "52": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["42", 0],
+      "vae": ["3", 0]
+    }
+  },
+  "53": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["43", 0],
+      "vae": ["3", 0]
+    }
+  },
+  "54": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["44", 0],
+      "vae": ["3", 0]
+    }
+  },
+  "61": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": ["51", 0],
+      "image2": ["52", 0]
+    }
+  },
+  "62": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": ["61", 0],
+      "image2": ["53", 0]
+    }
+  },
+  "63": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": ["62", 0],
+      "image2": ["54", 0]
+    }
+  },
+  "70": {
+    "class_type": "RIFE VFI",
+    "inputs": {
+      "frames": ["63", 0],
+      "ckpt_name": "rife47.pth",
+      "clear_cache_after_n_frames": 10,
+      "multiplier": 2,
+      "fast_mode": true,
+      "ensemble": true,
+      "scale_factor": 1.0
+    }
+  },
+  "80": {
+    "class_type": "VHS_VideoCombine",
+    "inputs": {
+      "images": ["70", 0],
+      "frame_rate": 32,
+      "loop_count": 0,
+      "filename_prefix": "wan_anim_chunked",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 19,
+      "save_metadata": true,
+      "pingpong": false,
+      "save_output": true
+    }
+  }
+}

@@ -66,6 +66,7 @@ CUSTOM_NODES=(
     "https://github.com/kijai/ComfyUI-KJNodes"
     "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite"
     "https://github.com/Fannovel16/ComfyUI-Frame-Interpolation"
+    "https://github.com/Fannovel16/comfyui_controlnet_aux"
 )
 
 for url in "${CUSTOM_NODES[@]}"; do
