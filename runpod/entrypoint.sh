@@ -15,6 +15,22 @@ echo "==========================================================================
 echo " RunPod ComfyUI Wan2.2-Animate entrypoint"
 echo "=========================================================================="
 
+# ---------------------------------------------------------------------------
+# 0) Pre-flight diagnostics. These print BEFORE any other logic so that if
+#    the container is dying early, the user can tell exactly how far we got
+#    by checking the RunPod console Logs tab.
+# ---------------------------------------------------------------------------
+echo "[preflight] uname -a:        $(uname -a)"
+echo "[preflight] whoami:          $(whoami)"
+echo "[preflight] pwd:             $(pwd)"
+echo "[preflight] PATH:            $PATH"
+echo "[preflight] python3 path:    $(command -v python3 || echo MISSING)"
+echo "[preflight] python3 version: $(python3 --version 2>&1 || echo MISSING)"
+echo "[preflight] hf path:         $(command -v hf || echo MISSING)"
+echo "[preflight] nvidia-smi probe (the next line indicates the GPU driver passed nvidia-container-runtime's CUDA require check):"
+nvidia-smi || echo "[preflight] nvidia-smi FAILED — GPU runtime not initialized. If the entrypoint exits right after this, the driver doesn't support CUDA 12.8 even with NVIDIA_DISABLE_REQUIRE=1, and you should switch the pod's GPU host."
+echo "[preflight] DRIVER_PROBE_OK"
+
 COMFY_ROOT="${COMFY_ROOT:-/opt/ComfyUI}"
 REPO_ROOT="${REPO_ROOT:-/app}"
 
@@ -161,7 +177,7 @@ fi
 echo "[entrypoint] Starting ComfyUI on 0.0.0.0:8188"
 cd "$COMFY_ROOT"
 # shellcheck disable=SC2086
-python main.py --listen 0.0.0.0 --port 8188 $COMFYUI_EXTRA_ARGS &
+python3 main.py --listen 0.0.0.0 --port 8188 $COMFYUI_EXTRA_ARGS &
 COMFY_PID=$!
 echo "[entrypoint] ComfyUI PID=$COMFY_PID"
 
@@ -190,7 +206,7 @@ fi
 # ---------------------------------------------------------------------------
 cd "$REPO_ROOT"
 
-batch_cmd=( python "$REPO_ROOT/runpod/runpod_batch.py"
+batch_cmd=( python3 "$REPO_ROOT/runpod/runpod_batch.py"
             --workflow "$WORKFLOW"
             --source "$SOURCE_VIDEO"
             --host 127.0.0.1:8188 )

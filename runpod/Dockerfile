@@ -118,8 +118,15 @@ RUN chmod +x /app/runpod/entrypoint.sh
 # ---------------------------------------------------------------------------
 # 10) Runtime config
 # ---------------------------------------------------------------------------
+# NVIDIA_DISABLE_REQUIRE=1 bypasses the NVIDIA_REQUIRE_CUDA check inherited
+# from the nvidia/cuda:12.8.0 base. That check pins specific driver-version
+# ranges and fails *before* ENTRYPOINT runs on hosts whose driver isn't in
+# the explicit whitelist — even when the driver is actually newer/compatible.
+# Real CUDA init still happens at PyTorch import time, so the kernel-image
+# compatibility is enforced where it matters.
 ENV COMFY_ROOT=/opt/ComfyUI \
-    REPO_ROOT=/app
+    REPO_ROOT=/app \
+    NVIDIA_DISABLE_REQUIRE=1
 
 EXPOSE 8188
 

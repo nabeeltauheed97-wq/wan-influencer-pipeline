@@ -134,8 +134,13 @@ RUN chmod +x /app/runpod/entrypoint.ltx23.sh
 # ---------------------------------------------------------------------------
 # 10) Runtime config
 # ---------------------------------------------------------------------------
+# NVIDIA_DISABLE_REQUIRE=1 bypasses the NVIDIA_REQUIRE_CUDA check inherited
+# from the nvidia/cuda:12.8.0 base — it fails *before* ENTRYPOINT runs on
+# hosts whose driver version isn't in the image's explicit whitelist, even
+# when the driver is actually newer/compatible. See the wan22 Dockerfile.
 ENV COMFY_ROOT=/opt/ComfyUI \
-    REPO_ROOT=/app
+    REPO_ROOT=/app \
+    NVIDIA_DISABLE_REQUIRE=1
 
 EXPOSE 8188
 
